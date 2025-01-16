@@ -21,7 +21,40 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build apk
+    - name: Build APK
       uses: gradle/actions/setup-gradle@v3
       with:
         arguments: build
+
+    - name: Upload APKs to GitHub Releases
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        APK_FILES=$(find . -name "*.apk") # Tüm APK dosyalarını bul
+        if [ -z "$APK_FILES" ]; then
+          echo "APK bulunamadı, işlem iptal edildi."
+          exit 1
+        fi
+
+        # Her bir APK dosyasını işle
+        for APK_PATH in $APK_FILES; do
+          TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S') # Tarih ve saat
+          TAG_NAME="release-${TIMESTAMP}"
+          RELEASE_NAME="Release ${TIMESTAMP}"
+
+          echo "Yeni bir release oluşturuluyor: $RELEASE_NAME"
+
+          # GitHub Release oluştur
+          UPLOAD_URL=$(curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$RELEASE_NAME\",\"body\":\"Yeni bir APK sürümü yayınlandı.\",\"draft\":false,\"prerelease\":false}" \
+            https://api.github.com/repos/${{ github.repository }}/releases | jq -r '.upload_url' | sed -e "s/{?name,label}//")
+          
+          # APK dosyasını yükle
+          curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$APK_PATH" \
+            "$UPLOAD_URL?name=$(basename $APK_PATH)"
+
+          echo "APK yüklendi: $APK_PATH -> $RELEASE_NAME"
+        done
