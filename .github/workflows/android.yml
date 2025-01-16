@@ -30,7 +30,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        APK_FILES=$(find . -name "*.apk") # Tüm APK dosyalarını bul
+        APK_FILES=$(find . -name "*.apk") # Tüm APK dosyalarını
         if [ -z "$APK_FILES" ]; then
           echo "APK bulunamadı, işlem iptal edildi."
           exit 1
